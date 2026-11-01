@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STARHAWK Admin</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#eef2ff;min-height:100vh;padding:24px 14px}
+main{max-width:460px;margin:30px auto}.brand{font-size:13px;letter-spacing:3px;color:#8ea4ff;font-weight:800}
+h1{font-size:28px;margin:8px 0 5px}.muted{color:#aab4d0;font-size:14px;line-height:1.5}
+.panel{background:#151d33;border:1px solid #293653;border-radius:18px;padding:20px;margin-top:18px}
+label{display:block;font-size:13px;color:#c6d0e8;margin:14px 0 7px}
+input,select,button{width:100%;border-radius:11px;padding:13px;font-size:16px}
+input,select{background:#0d1427;border:1px solid #354362;color:#fff}
+button{border:0;background:#718cff;color:#081027;font-weight:800;margin-top:16px;min-height:48px}
+button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:14px;font-size:14px}
+#result{background:#0b1428;border:1px dashed #718cff;border-radius:12px;padding:14px;margin-top:14px;display:none;overflow-wrap:anywhere}
+.key{font-size:17px;font-weight:800;letter-spacing:1px}.small{font-size:12px;color:#9eabc8;margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+<div class="brand">STARHAWK</div><h1>Admin Panel</h1>
+<div class="muted">Masuk dengan akun admin Supabase untuk membuat license key.</div>
+<section class="panel" id="loginPanel">
+<h2 style="margin:0;font-size:19px">Login Admin</h2>
+<p class="muted">Masuk menggunakan akun GitHub yang terhubung ke Supabase.</p>
+<button id="githubLoginBtn" type="button">Masuk dengan GitHub</button>
+</section>
+<section class="panel" id="keyPanel" hidden>
+<h2 style="margin:0;font-size:19px">Buat License Key</h2><div class="muted" id="who"></div>
+<label for="type">Masa aktif KEY</label>
+<select id="type"><option value="permanent">Permanent</option><option value="1_day">1 hari</option><option value="7_days">7 hari</option><option value="30_days">30 hari</option></select>
+<button id="createBtn">Buat KEY</button><button id="logoutBtn" style="background:#293653;color:#eef2ff">Keluar</button>
+<div id="result"><div class="muted">KEY berhasil dibuat — salin dan simpan sekarang:</div><div class="key" id="keyText"></div><button id="copyBtn">Salin KEY</button></div></section>
+<div id="status" role="status" aria-live="polite"></div>
+<div class="small">Login GitHub memerlukan provider GitHub aktif di Supabase dan URL HTTPS halaman ini terdaftar di Authentication → URL Configuration → Redirect URLs. File lokal dari folder Download tidak dapat menjadi callback OAuth yang andal.<br><br>Gunakan Publishable key saja. Jangan masukkan service_role atau Secret key di halaman ini.</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+ const SUPABASE_URL = "https://tjxvhpihercfvixznmle.supabase.co";
+ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_pgEeTuvvWIhNC0moFubMOw_92MF_bs6";
+ const $ = id => document.getElementById(id), status = msg => $("status").textContent=msg;
+ if(!window.supabase){status("Gagal memuat library Supabase. Periksa internet.");return;}
+ const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+ function showSession(s){$("loginPanel").hidden=!!s;$("keyPanel").hidden=!s;$("who").textContent=s?"Login sebagai "+s.user.email:"";}
+ client.auth.getSession().then(({data})=>showSession(data.session));
+ $("githubLoginBtn").addEventListener("click",async()=>{
+  status("Mengalihkan ke GitHub...");
+  const redirectTo = window.location.href.split("#")[0].split("?")[0];
+  const {error}=await client.auth.signInWithOAuth({
+   provider:"github",
+   options:{redirectTo}
+  });
+  if(error) status("Login GitHub gagal: "+error.message);
+ });
+ $("createBtn").addEventListener("click",async()=>{
+  $("createBtn").disabled=true;$("result").style.display="none";status("Memeriksa sesi login...");
+  try{
+   const {data:sessionData,error:sessionError}=await client.auth.getSession();
+   if(sessionError)throw sessionError;
+   let session=sessionData.session;
+   if(!session)throw new Error("Sesi login tidak ditemukan. Keluar lalu login GitHub kembali.");
+   if(session.expires_at && session.expires_at*1000 < Date.now()+60000){
+    const {data:refreshData,error:refreshError}=await client.auth.refreshSession();
+    if(refreshError)throw refreshError;
+    session=refreshData.session;
+   }
+   if(!session?.access_token)throw new Error("Token login tidak tersedia. Login GitHub kembali.");
+   status("Menghubungi server...");
+   const response=await fetch(SUPABASE_URL+"/functions/v1/admin-create-license",{
+    method:"POST",
+    headers:{
+     "Content-Type":"application/json",
+     "apikey":SUPABASE_PUBLISHABLE_KEY,
+     "Authorization":"Bearer "+session.access_token
+    },
+    body:JSON.stringify({license_type:$("type").value})
+   });
+   const payload=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(payload.error||payload.message||("Server mengembalikan HTTP "+response.status));
+   if(!payload?.success||!payload.license_key)throw new Error(payload?.error||"Respons server tidak sesuai.");
+   $("keyText").textContent=payload.license_key;$("result").style.display="block";status("KEY berhasil dibuat. Simpan KEY ini sekarang.");
+  }catch(e){status("Gagal membuat KEY: "+(e?.message||String(e)));}
+  finally{$("createBtn").disabled=false;}
+ });
+ $("copyBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("keyText").textContent);status("KEY disalin.");}catch(_){status("Tekan lama teks KEY untuk menyalinnya.");}});
+ $("logoutBtn").addEventListener("click",async()=>{await client.auth.signOut();showSession(null);$("result").style.display="none";status("Sudah keluar.");});
+})();
+</script></body></html>
