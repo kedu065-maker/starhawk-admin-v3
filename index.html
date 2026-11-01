@@ -80,7 +80,13 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
     body:JSON.stringify({license_type:$("type").value})
    });
    const payload=await response.json().catch(()=>({}));
-   if(!response.ok)throw new Error(payload.error||payload.message||("Server mengembalikan HTTP "+response.status));
+   if(!response.ok){
+    const parts=[payload.error||payload.message||("Server mengembalikan HTTP "+response.status)];
+    if(payload.detail) parts.push("Detail: "+payload.detail);
+    if(payload.code) parts.push("Code: "+payload.code);
+    if(payload.hint) parts.push("Hint: "+payload.hint);
+    throw new Error(parts.join("\n"));
+   }
    if(!payload?.success||!payload.license_key)throw new Error(payload?.error||"Respons server tidak sesuai.");
    $("keyText").textContent=payload.license_key;$("result").style.display="block";status("KEY berhasil dibuat. Simpan KEY ini sekarang.");
   }catch(e){status("Gagal membuat KEY: "+(e?.message||String(e)));}
