@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STARHAWK Admin</title>
+<title>License Admin</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:#0b1020;color:#eef2ff;min-height:100vh;padding:24px 14px}
@@ -21,7 +21,7 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
 </head>
 <body>
 <main>
-<div class="brand">STARHAWK</div><h1>Admin Panel</h1>
+<div class="brand">LICENSE MANAGER</div><h1>Admin Panel</h1>
 <div class="muted">Masuk dengan akun admin Supabase untuk membuat license key.</div>
 <section class="panel" id="loginPanel">
 <h2 style="margin:0;font-size:19px">Login Admin</h2>
@@ -30,6 +30,8 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
 </section>
 <section class="panel" id="keyPanel" hidden>
 <h2 style="margin:0;font-size:19px">Buat License Key</h2><div class="muted" id="who"></div>
+<label for="app">Pilih aplikasi</label>
+<select id="app"><option value="starhawk">CIVICA</option><option value="rangga_gaming">Rangga Gaming</option></select>
 <label for="type">Masa aktif KEY</label>
 <select id="type"><option value="permanent">Permanent</option><option value="1_day">1 hari</option><option value="7_days">7 hari</option><option value="30_days">30 hari</option></select>
 <button id="createBtn">Buat KEY</button><button id="logoutBtn" style="background:#293653;color:#eef2ff">Keluar</button>
@@ -77,7 +79,7 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
      "apikey":SUPABASE_PUBLISHABLE_KEY,
      "Authorization":"Bearer "+session.access_token
     },
-    body:JSON.stringify({license_type:$("type").value})
+    body:JSON.stringify({license_type:$("type").value,app_id:$("app").value})
    });
    const payload=await response.json().catch(()=>({}));
    if(!response.ok){
