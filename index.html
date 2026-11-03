@@ -34,6 +34,9 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
 <select id="app"><option value="starhawk">CIVICA</option><option value="rangga_gaming">Rangga Gaming</option></select>
 <label for="type">Masa aktif KEY</label>
 <select id="type"><option value="permanent">Permanent</option><option value="1_day">1 hari</option><option value="7_days">7 hari</option><option value="30_days">30 hari</option></select>
+<label for="maxDevices">Maksimal perangkat (1–100.000)</label>
+<input id="maxDevices" type="number" inputmode="numeric" min="1" max="100000" step="1" value="1" required>
+<div class="muted" style="margin-top:7px">Batas perangkat untuk KEY ini. Bisa berbeda untuk setiap KEY.</div>
 <button id="createBtn">Buat KEY</button><button id="logoutBtn" style="background:#293653;color:#eef2ff">Keluar</button>
 <div id="result"><div class="muted">KEY berhasil dibuat — salin dan simpan sekarang:</div><div class="key" id="keyText"></div><button id="copyBtn">Salin KEY</button></div></section>
 <div id="status" role="status" aria-live="polite"></div>
@@ -61,6 +64,8 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
  $("createBtn").addEventListener("click",async()=>{
   $("createBtn").disabled=true;$("result").style.display="none";status("Memeriksa sesi login...");
   try{
+   const maxDevices=Number($("maxDevices").value);
+   if(!Number.isSafeInteger(maxDevices)||maxDevices<1||maxDevices>100000) throw new Error("Maksimal perangkat harus angka bulat antara 1 dan 100000.");
    const {data:sessionData,error:sessionError}=await client.auth.getSession();
    if(sessionError)throw sessionError;
    let session=sessionData.session;
@@ -79,7 +84,7 @@ button:disabled{opacity:.55}#status{white-space:pre-wrap;overflow-wrap:anywhere;
      "apikey":SUPABASE_PUBLISHABLE_KEY,
      "Authorization":"Bearer "+session.access_token
     },
-    body:JSON.stringify({license_type:$("type").value,app_id:$("app").value})
+    body:JSON.stringify({license_type:$("type").value,app_id:$("app").value,max_devices:maxDevices})
    });
    const payload=await response.json().catch(()=>({}));
    if(!response.ok){
